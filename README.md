@@ -1,52 +1,54 @@
 # Bank Customer Churn Prediction
 
-Prediksi probabilitas nasabah bank akan churn (keluar/menutup rekening), menggunakan pipeline
-EDA → Feature Engineering → Balancing → Modeling yang divalidasi secara ketat untuk menghindari
-data leakage dan overfitting.
+Predicting the probability of bank customer churn using an EDA → Feature Engineering → Balancing
+→ Modeling pipeline, rigorously validated to avoid data leakage and overfitting.
 
-## Ringkasan Hasil
+## Results Summary
 
-| Metrik | Skor |
+| Metric | Score |
 |---|---|
-| OOF ROC-AUC (5-fold, seluruh data train) | **0.9331** (± 0.0033) |
-| Blending 3 model (test lokal) | **0.9344** |
+| OOF ROC-AUC (5-fold, entire training data) | **0.9331** (± 0.0033) |
+| 3-model blend (local test) | **0.9344** |
 | Public Leaderboard | **0.9294** |
 
-Selisih kecil antar ketiga metrik di atas menunjukkan model generalisasi dengan baik dan tidak
-overfit ke satu subset data tertentu.
+The small gap between these three metrics indicates the model generalizes well and is not
+overfit to any single data subset.
 
 ## Dataset
 
-Data nasabah bank (10.000+ baris) dengan 13 fitur (demografi, produk, aktivitas rekening) dan
-target biner `Exited` (1 = churn, 0 = tidak). Distribusi target imbalanced (~80:20).
+Bank customer data (10,000+ rows) with 13 features (demographics, products, account activity)
+and a binary target `Exited` (1 = churned, 0 = retained). The target distribution is imbalanced
+(~80:20).
 
-> Dataset tidak disertakan di repo ini. Unduh dari sumber kompetisi/dataset aslinya dan taruh
-> `train.csv`, `test.csv`, `sample_submission.csv` di root folder sebelum menjalankan notebook.
+> The dataset is not included in this repo. Download it from the original competition/dataset
+> source and place `train.csv`, `test.csv`, `sample_submission.csv` in the root folder before
+> running the notebook.
 
-## Pendekatan
+## Approach
 
-1. **EDA** — korelasi antar fitur, distribusi univariate/bivariate, deteksi outlier dan anomali data.
-2. **Feature Engineering** — 4 fitur turunan berbasis rasional bisnis (rasio saldo-gaji, indeks
-   kematangan finansial, flag saldo nol, interaksi jumlah produk × keaktifan). 3 fitur tambahan lain
-   diuji lewat OOF cross-validation dan terbukti tidak membantu, sehingga tidak dipakai di model final
-   — keputusan diambil berdasarkan data, bukan asumsi.
-3. **Preprocessing** — satu fungsi pipeline dipakai konsisten untuk data train maupun test, mencegah
-   kolom encoding yang tidak sinkron antara keduanya.
-4. **Balancing** — SMOTE dibungkus di dalam pipeline cross-validation (bukan diterapkan manual di
-   luar), mencegah kebocoran data sintetis ke fold validasi. Dipilih dibanding `scale_pos_weight`
-   setelah dibandingkan lewat *calibration curve* — SMOTE terbukti menghasilkan probabilitas yang
-   lebih terkalibrasi untuk dataset ini.
-5. **Modeling** — 5 algoritma (Logistic Regression, Random Forest, Gradient Boosting, XGBoost,
-   LightGBM), masing-masing di-tuning dengan `RandomizedSearchCV` + regularisasi eksplisit untuk
-   menahan overfitting.
-6. **Evaluasi** — 5-fold Stratified Cross-Validation dan Out-of-Fold (OOF) prediction, bukan hanya
-   satu kali train-test split, untuk memastikan skor stabil dan bisa dipercaya.
-7. **Ensembling** — blending sederhana (rata-rata probabilitas) dari 3 model terbaik, mengungguli
-   stacking dengan meta-learner pada kasus ini.
-8. **Threshold tuning** — post-processing murni pada probabilitas prediksi untuk mengoptimalkan
-   F1-score kelas minoritas (churn), tanpa menyentuh proses training.
+1. **EDA** — correlation analysis, univariate/bivariate distributions, outlier and data anomaly
+   detection.
+2. **Feature Engineering** — 4 derived features grounded in business rationale (balance-to-salary
+   ratio, financial maturity index, zero-balance flag, product count × activity interaction).
+   3 additional features were tested via OOF cross-validation and proved not to help, so they
+   were excluded from the final model — a decision made based on data, not assumption.
+3. **Preprocessing** — a single pipeline function is used consistently for both train and test
+   data, preventing mismatched encoding between them.
+4. **Balancing** — SMOTE is wrapped inside the cross-validation pipeline (rather than applied
+   manually beforehand), preventing synthetic data leakage into validation folds. It was chosen
+   over `scale_pos_weight` after comparison via calibration curves — SMOTE produced better-
+   calibrated probabilities for this dataset.
+5. **Modeling** — 5 algorithms (Logistic Regression, Random Forest, Gradient Boosting, XGBoost,
+   LightGBM), each tuned with `RandomizedSearchCV` plus explicit regularization to control
+   overfitting.
+6. **Evaluation** — 5-fold Stratified Cross-Validation and Out-of-Fold (OOF) prediction, rather
+   than a single train-test split, to ensure the score is stable and trustworthy.
+7. **Ensembling** — simple blending (probability averaging) of the top 3 models outperformed
+   stacking with a meta-learner for this case.
+8. **Threshold tuning** — pure post-processing on predicted probabilities to optimize the
+   minority-class (churn) F1-score, without touching the training process.
 
-## Perbandingan Model
+## Model Comparison
 
 | Model | CV ROC-AUC | Test ROC-AUC | Overfit Gap |
 |---|---|---|---|
@@ -56,12 +58,12 @@ target biner `Exited` (1 = churn, 0 = tidak). Distribusi target imbalanced (~80:
 | Random Forest | 0.9258 | 0.9286 | 0.0291 |
 | Logistic Regression | 0.8691 | 0.8708 | -0.0027 |
 
-## Fitur Paling Berpengaruh
+## Most Influential Features
 
-Berdasarkan permutation importance: `NumOfProducts`, `Age`, `IsActiveMember` — nasabah dengan
-banyak produk namun tidak aktif, dan usia lebih tua, memiliki risiko churn tertinggi.
+Based on permutation importance: `NumOfProducts`, `Age`, `IsActiveMember` — customers with
+many products but low activity, and older customers, show the highest churn risk.
 
-## Cara Menjalankan
+## How to Run
 
 ```bash
 python -m venv venv
@@ -71,23 +73,23 @@ venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
-Buka `bank_customer_churn_revised.ipynb` di Jupyter/VS Code, pilih kernel dari `venv`, lalu
-**Restart Kernel & Run All**. Proses hyperparameter tuning (`RandomizedSearchCV` + Optuna 100 trial)
-memakan waktu beberapa menit tergantung spesifikasi perangkat.
+Open `bank_customer_churn_revised.ipynb` in Jupyter/VS Code, select the kernel from `venv`, then
+**Restart Kernel & Run All**. Hyperparameter tuning (`RandomizedSearchCV` + 100-trial Optuna
+search) takes a few minutes depending on hardware.
 
-## Struktur Proyek
+## Project Structure
 
 ```
 .
-├── bank_customer_churn_revised.ipynb   # Notebook utama
+├── bank_customer_churn_revised.ipynb   # Main notebook
 ├── requirements.txt
 ├── README.md
-└── (train.csv, test.csv, sample_submission.csv -- tidak disertakan, unduh terpisah)
+└── (train.csv, test.csv, sample_submission.csv -- not included, download separately)
 ```
 
-## Catatan
+## Notes
 
-Notebook ini juga mendokumentasikan beberapa eksperimen yang **tidak** berhasil meningkatkan skor
-(3 kombinasi fitur baru, Optuna vs RandomizedSearchCV, stacking vs blending) — sengaja dipertahankan
-sebagai catatan proses validasi hipotesis, bukan cuma hasil akhir yang "berhasil". Kesimpulan lengkap
-ada di bagian akhir notebook.
+This notebook also documents several experiments that **did not** improve the score (3 new
+feature combinations, Optuna vs. RandomizedSearchCV, stacking vs. blending) — intentionally kept
+as a record of hypothesis validation, not just the successful outcome. The full conclusion is
+at the end of the notebook.
